@@ -23,7 +23,7 @@ To fit the design within the constraints of a single 1x1 Tiny Tapeout tile and i
 2. Bring the chip out of reset (`rst_n` high).
 3. **Load Key**: Set `uio_in[0]` (load_key_en) high. Provide the 80-bit key on `ui_in` in 8-bit chunks sequence, clocking 10 cycles.
 4. **Load Data**: Pull `load_key_en` low, set `uio_in[1]` (load_data_en) high. Provide the 64-bit plaintext data on `ui_in` in 8-bit chunks, clocking 8 cycles.
-5. **Encrypt**: Pull all load flags low. Pulse `uio_in[2]` (start_encrypt) high for at least 1 cycle to begin the encryption process. Wait for `uio_out[0]` (done_flag) to go high (at least 32 cycles).
+5. **Encrypt**: Pull all load flags low. Pulse `uio_in[2]` (start_encrypt) high for at least 1 cycle to begin the encryption process. Wait for `uio_out[0]` (done_flag) to go high (~560 cycles for the nibble-serial datapath).
 6. **Unload Data**: Drive `uio_in[3]` (unload_data_en) high. Read the resulting 64-bit ciphertext from `uo_out` over 8 clock cycles.
 
 ## External hardware
