@@ -14,6 +14,7 @@ This implementation operates on a 64-bit plaintext block and uses an 80-bit encr
 ### Key Features
 - **Algorithm**: PRESENT-80 (64-bit block, 80-bit key, 31 rounds).
 - **Target Platform**: Tiny Tapeout (1x1 tile).
+- **Architecture**: Nibble-serial datapath with a single shared S-Box for minimal area.
 - **IO Scheme**: 8-bit parallel, sequenced over multiple clock cycles via `uio_in` control flags.
 
 ## Testing
