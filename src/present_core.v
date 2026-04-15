@@ -80,8 +80,7 @@ module present_core (
                     done    <= 1'b0;
                 end
             end else begin
-                // Turn off done pulse after 1 cycle of being high (or handle externally)
-                // Assuming client detects high edge or we just clear it on reset/next start
+                done <= 1'b0;
             end
         end
     end
