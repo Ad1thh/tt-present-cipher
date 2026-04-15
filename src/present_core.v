@@ -1,22 +1,15 @@
 `default_nettype none
 
 module present_core (
-    input  wire clk,
-    input  wire rst_n,
-    input  wire start,
-    input  wire [63:0] plaintext,
-    input  wire [79:0] key,
-    output reg  [63:0] ciphertext,
-    output reg  done
+    input  wire [63:0] state_in,
+    input  wire [79:0] key_in,
+    input  wire [4:0]  round,
+    output wire [63:0] state_out,
+    output wire [79:0] key_out
 );
 
-    reg [63:0] state;
-    reg [79:0] key_reg;
-    reg [4:0]  round; // 1 to 31
-    reg        busy;
-
     // ----- Datapath Combinational Logic -----
-    wire [63:0] add_round_key = state ^ key_reg[79:16];
+    wire [63:0] add_round_key = state_in ^ key_in[79:16];
     
     wire [63:0] sbox_out;
     genvar i;
@@ -40,7 +33,7 @@ module present_core (
     // ----- Key Schedule Combinational Logic -----
     wire [79:0] key_rotated;
     // Rotate left by 61 is equivalent to rotate right by 19
-    assign key_rotated = {key_reg[18:0], key_reg[79:19]}; 
+    assign key_rotated = {key_in[18:0], key_in[79:19]}; 
 
     wire [3:0] key_sbox_out;
     sbox key_sbox (
@@ -51,38 +44,9 @@ module present_core (
     wire [79:0] next_key;
     assign next_key = {key_sbox_out, key_rotated[75:20], key_rotated[19:15] ^ round, key_rotated[14:0]};
 
-    // ----- Sequential Logic -----
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            state      <= 64'd0;
-            key_reg    <= 80'd0;
-            round      <= 5'd1;
-            busy       <= 1'b0;
-            done       <= 1'b0;
-            ciphertext <= 64'd0;
-        end else begin
-            if (start && !busy) begin
-                state   <= plaintext;
-                key_reg <= key;
-                round   <= 5'd1;
-                busy    <= 1'b1;
-                done    <= 1'b0;
-            end else if (busy) begin
-                if (round == 5'd31) begin
-                    // Final post-whitening
-                    ciphertext <= player_out ^ next_key[79:16];
-                    done       <= 1'b1;
-                    busy       <= 1'b0;
-                end else begin
-                    state   <= player_out;
-                    key_reg <= next_key;
-                    round   <= round + 1;
-                    done    <= 1'b0;
-                end
-            end else begin
-                done <= 1'b0;
-            end
-        end
-    end
+    // ----- Final Assignment -----
+    // Apply post-whitening if it is the 31st round
+    assign state_out = (round == 5'd31) ? (player_out ^ next_key[79:16]) : player_out;
+    assign key_out   = next_key;
 
 endmodule
