@@ -10,65 +10,81 @@ module tt_um_present (
     output wire [7:0] uo_out,   // Dedicated outputs
     input  wire [7:0] uio_in,   // IOs: Input path
     output wire [7:0] uio_out,  // IOs: Output path
-    output wire [7:0] uio_oe,   // IOs: Enable path (active high: 0=input, 1=output)
-    input  wire       ena,      // will go high when the design is enabled
+    output wire [7:0] uio_oe,   // IOs: Enable path (active high)
+    input  wire       ena,      // always 1 when the design is powered
     input  wire       clk,      // clock
     input  wire       rst_n     // reset_n - low to reset
 );
 
-  // --- Control Signals from uio_in ---
-    wire load_key_en    = uio_in[0];
-    wire load_data_en   = uio_in[1];
-    wire start_encrypt  = uio_in[2];
-    wire unload_data_en = uio_in[3];
+    assign uio_oe  = 8'b11111111;
 
+    wire load_key_en     = (uio_in == 8'd1);
+    wire load_data_en    = (uio_in == 8'd2);
+    wire start_encrypt   = (uio_in == 8'd4);
+    wire unload_data_en  = (uio_in == 8'd8);
+
+    reg [63:0] state_reg;
     reg [79:0] key_reg;
-    reg [63:0] plaintext_reg;
-    reg [63:0] ciphertext_shift_reg;
+    reg [4:0]  round;
+    reg        busy;
+    reg        done_reg;
 
-    wire [63:0] core_ciphertext;
-    wire        core_done;
+    wire [63:0] next_state;
+    wire [79:0] next_key;
 
-    // --- Output Assignments ---
-    assign uo_out = ciphertext_shift_reg[63:56]; // Output MSB byte of ciphertext
-    assign uio_out[0] = core_done;               // Done flag on bidirectional pin 0
-    assign uio_out[7:1] = 7'd0;
-    assign uio_oe = 8'h01;                       // uio[0] is output, uio[7:1] are inputs
-
-    // --- Core Instance ---
+    // Combinational Datapath Instance
     present_core core (
-        .clk(clk),
-        .rst_n(rst_n),
-        .start(start_encrypt),
-        .plaintext(plaintext_reg),
-        .key(key_reg),
-        .ciphertext(core_ciphertext),
-        .done(core_done)
+        .state_in(state_reg),
+        .key_in(key_reg),
+        .round(round),
+        .state_out(next_state),
+        .key_out(next_key)
     );
 
-    // --- FSM / Shift Register Logic ---
+    // Continuous assignment from highest byte of state register
+    assign uo_out = state_reg[63:56];
+
+    // uio_out[0] serves as the done flag, others 0
+    assign uio_out = {7'd0, done_reg};
+
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            key_reg <= 80'd0;
-            plaintext_reg <= 64'd0;
-            ciphertext_shift_reg <= 64'd0;
+            state_reg <= 64'd0;
+            key_reg   <= 80'd0;
+            round     <= 5'd1;
+            busy      <= 1'b0;
+            done_reg  <= 1'b0;
         end else begin
-            // 80-bit Key Load (Shift Left by 8)
+            // Non-overlapping priority shift-register logic
             if (load_key_en) begin
-                key_reg <= {key_reg[71:0], ui_in};
-            end
-            
-            // 64-bit Plaintext Load (Shift Left by 8)
-            if (load_data_en) begin
-                plaintext_reg <= {plaintext_reg[55:0], ui_in};
-            end
-
-            // Result Capture & Unload
-            if (core_done) begin
-                ciphertext_shift_reg <= core_ciphertext; // Capture instantly when done
+                key_reg  <= {key_reg[71:0], ui_in};
+                done_reg <= 1'b0;
+            end else if (load_data_en) begin
+                state_reg <= {state_reg[55:0], ui_in};
+                done_reg  <= 1'b0;
+            end else if (start_encrypt && !busy) begin
+                round    <= 5'd1;
+                busy     <= 1'b1;
+                done_reg <= 1'b0;
+            end else if (busy) begin
+                // Encrypting Phase: Loop combinational module back onto itself
+                if (round == 5'd31) begin
+                    state_reg <= next_state; // Includes post-whitening
+                    key_reg   <= next_key; 
+                    busy      <= 1'b0;
+                    done_reg  <= 1'b1;       // Pulse done flag
+                end else begin
+                    state_reg <= next_state;
+                    key_reg   <= next_key;
+                    round     <= round + 1;
+                    done_reg  <= 1'b0;
+                end
             end else if (unload_data_en) begin
-                // Shift output data left so next byte becomes MSB
-                ciphertext_shift_reg <= {ciphertext_shift_reg[55:0], 8'd0};
+                state_reg <= {state_reg[55:0], 8'd0}; // Shift data out towards uo_out
+                done_reg  <= 1'b0;
+            end else begin
+                // Idle state, clear done flag to create the 1-cycle pulse
+                done_reg <= 1'b0;
             end
         end
     end
