@@ -122,5 +122,7 @@ module tt_um_present (
             endcase
         end
     end
-
+    
+    // Suppress unused signal warning for Tiny Tapeout mandatory pins
+    wire _unused = ena
 endmodule
