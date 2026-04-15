@@ -30,13 +30,13 @@ async def load_data(dut, data_hex):
 
 async def get_data(dut):
     res = 0
-    await Timer(1, units='ns') # Let combinational uo_out settle
+    await Timer(2, units='us') # Let combinational uo_out settle
     res = (res << 8) | int(dut.uo_out.value)
     
     dut.uio_in.value = 8 # unload_data_en
     for i in range(7):
         await RisingEdge(dut.clk)
-        await Timer(1, units='ns')
+        await Timer(2, units='us')
         res = (res << 8) | int(dut.uo_out.value)
         
     dut.uio_in.value = 0
@@ -78,7 +78,7 @@ async def test_present(dut):
         # Wait until done flag pulses on uio_out[0]
         while int(dut.uio_out.value) & 1 == 0:
             await RisingEdge(dut.clk)
-
+            
         await RisingEdge(dut.clk) # Complete capture cycle in FSM
         
         # Retrieve and verify Output
