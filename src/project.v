@@ -59,6 +59,9 @@ module tt_um_present (
     wire [79:0] next_key = {ksbox_out, key_rotated[75:20],
                             key_rotated[19:15] ^ round_ctr, key_rotated[14:0]};
 
+    // List all unused inputs to prevent warnings
+    wire _unused = &{ena, 1'b0};
+    
     // --- Outputs ---
     assign uo_out  = state_reg[63:56];
     assign uio_out = {7'd0, done_reg};
@@ -122,7 +125,4 @@ module tt_um_present (
             endcase
         end
     end
-    
-    // Suppress unused signal warning for Tiny Tapeout mandatory pins
-    wire _unused = ena
 endmodule
