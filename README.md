@@ -13,7 +13,7 @@ This implementation operates on a 64-bit plaintext block and uses an 80-bit encr
 
 ### Key Features
 - **Algorithm**: PRESENT-80 (64-bit block, 80-bit key, 31 rounds).
-- **Target Platform**: Tiny Tapeout (1x2 tile).
+- **Target Platform**: Tiny Tapeout (1x1 tile).
 - **IO Scheme**: 8-bit parallel, sequenced over multiple clock cycles via `uio_in` control flags.
 
 ## Testing
